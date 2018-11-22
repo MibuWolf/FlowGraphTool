@@ -4,40 +4,75 @@
 */
 module ui{
 	import Elements = ui.Editor.Elements;
-	import IItem = core.IItem;
 	import Point = Laya.Point;
 	import Sprite = Laya.Sprite;
 	import Event = Laya.Event;
 	import EventType = core.EventType;
+	import EventManager = managers.EventManager;
+	import Slot = model.Slot;
 
-	export class SlotOutItem extends Elements.SlotOutItemUI implements IItem
+	export class SlotOutItem extends Elements.SlotOutItemUI implements core.IData, core.ITransform
 	{
+		data:Slot;
 		anchor:Sprite;
-
-		setAnchor(anchor:Sprite):void
-		{
-			this.anchor = anchor;
-		}
-
-		getOffset():Point
-		{
-			let gloabalPos:Point = this.getGlobalPos();
-			let anchorPos:Point = this.anchor.localToGlobal(new Point(0, 0));
-			let offset =new Point(gloabalPos.x - anchorPos.x, gloabalPos.y - anchorPos.y);
-			return new Point(this.anchor.x + offset.x, this.anchor.y + offset.y);
-		}
-
-		private getGlobalPos():Point
-		{
-			let pos:Point = new Point(this.clip_slotIcon.x + this.clip_slotIcon.width, this.clip_slotIcon.y + (this.clip_slotIcon.height >> 1));
-			let globalPos:Point = this.localToGlobal(pos);
-			return globalPos;
-		}
 
 		constructor()
 		{
 			super();
 			this.addEvents();
+		}
+
+		// 获取描点位置
+		getAnchorPosition():Point
+		{
+			return this.anchor.globalToLocal(this.getStagePosition());
+		}
+
+		// 设置锚点
+		setAnchor(anchor:Sprite):void
+		{
+			this.anchor = anchor;
+		}
+
+		// 获取舞台位置
+		getStagePosition():Point
+		{
+			let px:number = this.btn_executionOut.x;
+			let py:number = this.btn_executionOut.y + (this.btn_executionOut.height >> 1) + 1;
+			if(this.data.getType() == core.SlotType.DataOut)
+			{
+				px = this.btn_dataOut.x;
+				py = this.btn_dataOut.y + (this.btn_dataOut.height >> 1) + 1;
+			}
+			let pos:Point = new Point(px, py);
+			let globalPos:Point = this.localToGlobal(pos);
+			return globalPos;
+		}
+
+		setData(data:Slot):void
+		{
+			this.data = data;
+			this.data.on(model.Model.UPDATE, this, this.update);
+			this.update();
+		}
+
+		private update():void
+		{
+			this.btn_executionOut.visible = this.data.getType() == core.SlotType.ExecutionOut;
+			this.btn_dataOut.visible = this.data.getType() == core.SlotType.DataOut;
+			this.txt_type.visible = false;
+
+			this.txt_slotName.text = this.data.getName();
+			this.width = this.txt_slotName.width + this.txt_slotName.right;
+			if(this.data.getType() == core.SlotType.DataOut)
+			{
+				this.txt_type.visible = true;
+				this.txt_type.text = this.data.getDataType().toString() + ":";
+				this.txt_type.right = this.txt_slotName.right + this.txt_slotName.width;
+				this.width = this.txt_type.right + this.txt_type.width;
+			}
+
+			this.event(core.EventType.RESIZE, [false, this.width]);
 		}
 
 		destroy(destroyChild?: boolean):void
@@ -46,13 +81,30 @@ module ui{
 			super.destroy(destroyChild);
 		}
 
+		public clear():void
+		{
+
+		}
+
 		private addEvents():void
 		{
-			this.clip_slotIcon.on(Event.CLICK, this, this.onEventHander);
-			this.clip_slotIcon.on(Event.MOUSE_DOWN, this, this.onEventHander);
-			this.clip_slotIcon.on(Event.MOUSE_UP, this, this.onEventHander);
-			this.clip_slotIcon.on(Event.MOUSE_OVER, this, this.onEventHander);
-			this.clip_slotIcon.on(Event.MOUSE_OUT, this, this.onEventHander);
+			this.btn_dataOut.on(Event.MOUSE_DOWN, this, this.onEventHander);
+			this.btn_dataOut.on(Event.MOUSE_UP, this, this.onEventHander);
+			this.btn_dataOut.on(Event.MOUSE_OVER, this, this.onEventHander);
+			this.btn_executionOut.on(Event.MOUSE_DOWN, this, this.onEventHander);
+			this.btn_executionOut.on(Event.MOUSE_UP, this, this.onEventHander);
+			this.btn_executionOut.on(Event.MOUSE_OVER, this, this.onEventHander);
+		}
+
+		public setStatus(status:boolean):void
+		{
+			if(!this.data)
+				return;
+
+			if(this.data.getType() == core.SlotType.ExecutionOut)
+				this.btn_executionOut.selected = status;
+			else if(this.data.getType() == core.SlotType.DataOut)
+				this.btn_dataOut.selected = status;
 		}
 
 		private onEventHander(evt:Event):void
@@ -60,26 +112,14 @@ module ui{
 			switch(evt.type)
 			{
 				case Event.MOUSE_OVER:
-					if(DataManager.drawing)
+					if(GraphContainer.slotType)
 					{
-						Laya.stage.event(EventType.LINE_END, [this.getGlobalPos(), this]);
+						EventManager.getInstance().event(EventType.LINE_END, [this, this.data]);
 					}
-
-					// let colorMatrix = [
-					// 		1, 0, 0, 0, 0, //R
-					// 		0, 0, 0, 0, 0, //G
-					// 		0, 0, 0, 0, 0, //B
-					// 		0, 0, 0, 1, 0, //A
-					// 	];
-					// let RED_FILTER = new Laya.ColorFilter(colorMatrix);
-					this.clip_slotIcon.filters = createFilters();
 					evt.stopPropagation();
 					break;
-				case Event.MOUSE_OUT:
-					this.clip_slotIcon.filters = null;
-				break;
 				case Event.MOUSE_DOWN:
-					Laya.stage.event(EventType.LINE_START, [this.getGlobalPos(), this]);
+					EventManager.getInstance().event(EventType.LINE_START, [this, this.data]);
 					evt.stopPropagation();
 				break;
 				case Event.MOUSE_UP:
@@ -90,10 +130,14 @@ module ui{
 
 		private removeEvents():void
 		{
-			this.clip_slotIcon.off(Event.CLICK, this, this.onEventHander);
-			this.clip_slotIcon.off(Event.MOUSE_DOWN, this, this.onEventHander);
-			this.clip_slotIcon.off(Event.MOUSE_OVER, this, this.onEventHander);
-			this.clip_slotIcon.off(Event.MOUSE_OUT, this, this.onEventHander);
+			this.btn_dataOut.off(Event.CLICK, this, this.onEventHander);
+			this.btn_dataOut.off(Event.MOUSE_DOWN, this, this.onEventHander);
+			this.btn_dataOut.off(Event.MOUSE_OVER, this, this.onEventHander);
+			this.btn_executionOut.off(Event.CLICK, this, this.onEventHander);
+			this.btn_executionOut.off(Event.MOUSE_DOWN, this, this.onEventHander);
+			this.btn_executionOut.off(Event.MOUSE_OVER, this, this.onEventHander);
+			if(this.data)
+				this.data.off(model.Model.UPDATE, this, this.update);
 		}
 	}
 }

@@ -10,91 +10,151 @@ module ui{
 	import Rectangle = Laya.Rectangle;
 	import Label = Laya.Label;
 	import EventType = core.EventType;
+	import NodeManager = managers.NodeManager;
+	import EventManager = managers.EventManager;
 
-	export class NodePalette extends Editor.NodPaletteUI
+	export class NodePalette extends Editor.NodPaletteUI implements core.IData, core.IContent
 	{
-		private _dragRegion:Rectangle = null; 	// 拖拽区域
-
-		constructor(dragRegion:Rectangle)
+		data:Map<string, NodeTemplate>;
+	
+		private _dragRegion:Rectangle = null;// 拖拽区域
+	
+		constructor()
 		{
 			super();
-			Laya.stage.on(EventType.SYNC_GRAPH, this, this.updateNodes);
-			this._dragRegion = dragRegion;
+			this.init();
 		}
 
-		private parseToTreeData():any
+		public add():void
 		{
-			let data:Array<Object> = DataManager.getInstance().getNodes();
-			let nodes = new Dictionary();
-			// 提取所有节点数据
-			for(let i = 0; i < data.length; ++i)
+
+		}
+
+		public switcher(data:model.ContentMenuItemData):void
+		{
+			this.visible = data.open;
+			if(data.open)
+				managers.EventManager.getInstance().event(core.EventType.NODES_DETAIL);
+			data.height = this.visible ? this.height : 0;
+		}
+
+		public getContent():Laya.Sprite
+		{
+			return this;
+		}
+
+		private init():void
+		{
+			this.createDragRegion();
+			
+			this.addEvents();
+			this.tree_nodes.mouseHandler = new Handler(this, this.onMouseClick);
+			this.tree_nodes.renderHandler = new Handler(this, this.onItemRender);
+			this.btn_close.clickHandler = new Handler(this, this.clickHandler);
+			this.input_key.on(Event.INPUT, this, this.onInputHandler);
+
+			let data:Map<string, NodeTemplate> = NodeManager.getInstance().getAllNodeTemplates();
+			this.setData(data);
+		}
+
+		private createDragRegion():void
+		{
+			let pos:Laya.Point = new Laya.Point(this.x, this.y);
+			pos = this.localToGlobal(pos);
+			this._dragRegion = new Rectangle(0, 160, 1920, 1000);
+		}
+
+		private onInputHandler(evt:Event):void
+		{
+			let partten:string = this.input_key.text.trim();
+			if(partten)
 			{
-				let node:Object = data[i];
-				if(node["category"])
+				let matchs:Map<string, NodeTemplate> = NodeManager.getInstance().getMatchNodeTemplates(partten);
+				if(matchs)
 				{
-					// 处理目录
-					let categoryObj:Object = nodes.get(node["category"]);
-					if(!categoryObj)
-					{
-						categoryObj = {};
-						nodes.set(node["category"], categoryObj);
-					}
-
-					if(node["subCategory"])
-					{
-						// 处理子目录
-						let subCategoryObj:Dictionary = categoryObj["subs"];
-						if(!subCategoryObj)
-						{
-							subCategoryObj = new Dictionary();
-							categoryObj["subs"] = subCategoryObj;	
-						}
-
-						let leafs:Array<string> = subCategoryObj[node["subCategory"]]; 
-						if(!leafs)
-						{
-							leafs = new Array<string>();
-							subCategoryObj.set(node["subCategory"], leafs);
-						}
-						leafs.push(node["name"]);
-					}
-					else
-					{
-						// 处理叶子节点
-						let leafsArray:Array<string> = categoryObj["leafs"];
-						if(!leafsArray)
-						{
-							leafsArray = new Array<string>();
-							categoryObj["leafs"] = leafsArray;
-						}
-						leafsArray.push(node["name"]);
-					}
+					this.setData(matchs);
 				}
 			}
+		}
 
+		private clickHandler():void
+		{
+			this.input_key.text = "";
+			this.setData(NodeManager.getInstance().getAllNodeTemplates());
+		}
+
+		private onItemRender(item:NodePaletteItem, index: number):void
+		{
+			item.setData(item.dataSource);
+		}
+
+		private parseNodeTemplatesToTreeData():any
+		{
+			let nodeTemplates:Dictionary = new Dictionary();
+			for(let nodeTemplate of this.data.values())
+			{
+				let categoryObj:Object = nodeTemplates.get(nodeTemplate.category);
+				if(!categoryObj)
+				{
+					categoryObj = {};
+					nodeTemplates.set(nodeTemplate.category, categoryObj);
+				}
+
+				if(nodeTemplate.subCategory)
+				{
+					// 处理子目录
+					let subCategoryObj:Dictionary = categoryObj["subs"];
+					if(!subCategoryObj)
+					{
+						subCategoryObj = new Dictionary();
+						categoryObj["subs"] = subCategoryObj;	
+					}
+
+					let leafs:Array<string> = subCategoryObj[nodeTemplate.subCategory]; 
+					if(!leafs)
+					{
+						leafs = new Array<string>();
+						subCategoryObj.set(nodeTemplate.subCategory, leafs);
+					}
+					leafs.push(nodeTemplate.name);
+				}
+				else
+				{
+					// 处理叶子节点
+					let leafsArray:Array<string> = categoryObj["leafs"];
+					if(!leafsArray)
+					{
+						leafsArray = new Array<string>();
+						categoryObj["leafs"] = leafsArray;
+					}
+					leafsArray.push(nodeTemplate.name);
+				}
+			}		
+
+			let openStatus:string = this.input_key.text.trim() != "" ? 'true' : 'false';
 			// 组合tree数据xml
 			let treeData:String = "<data>";
-			for(let index in nodes.keys)
+			for(let index in nodeTemplates.keys)
 			{
-				let dirName:string = nodes.keys[index];
-				treeData += "<dir label='" + dirName + "' isOpen='false'>";
+				let dirName:string = nodeTemplates.keys[index];
+				treeData += "<dir label='" + dirName + "' isOpen='" + openStatus + "'>";
 
 				// 处理子节点
-				let categoryObj:Object = nodes.get(dirName);
+				let categoryObj:Object = nodeTemplates.get(dirName);
 				let subCategoryObj:Dictionary = categoryObj["subs"];
 				if(subCategoryObj)
 				{
 					for(let idx in subCategoryObj.keys)
 					{
 						let subName = subCategoryObj.keys[idx];
-						treeData += "<dir label='" + subName + "' isOpen='false'>";
+						treeData += "<dir label='" + subName + "' isOpen='" + openStatus + "'>";
 						// 子节点中的叶子节点
 						let leafs:Array<string> = subCategoryObj.get(subName);
 						if(leafs)
 						{
 							for(let i = 0; i < leafs.length; ++i)
 							{
-								treeData += "<file label='" + leafs[i] + "'/>";
+								treeData += "<file label='" + leafs[i] + "' colorId='" + dirName + "'/>";
 							}
 						}
 						treeData += "</dir>";
@@ -107,7 +167,7 @@ module ui{
 				{
 					for(let i = 0; i < leafs.length; ++i)
 					{
-						treeData += "<file label='" + leafs[i] + "'/>";
+						treeData += "<file label='" + leafs[i] + "' colorId='" + dirName + "'/>";
 					}
 				}
 
@@ -118,17 +178,41 @@ module ui{
 			return Utils.parseXMLFromString(treeData);
 		}
 
-		protected initialize():void
+		private addEvents():void
 		{
-			super.initialize();
-			this.tree_nodes.scrollBar.autoHide = true;	
-			this.tree_nodes.xml = this.parseToTreeData();
-			this.tree_nodes.mouseHandler = new Handler(this, this.onMouseClick);
+			EventManager.getInstance().on(EventType.LOAD_GRAPH, this, this.updateNodes);
+		}
+
+		private removeEvents():void
+		{
+			EventManager.getInstance().off(EventType.LOAD_GRAPH, this, this.updateNodes);
+		}
+
+		public destroy(destroyChild?:boolean):void
+		{
+			super.destroy(destroyChild);
+			this.removeEvents();
+		}
+
+		setData(data:Map<string, NodeTemplate>):void
+		{
+			this.data = data;
+			this.update();
+		}
+
+		private update():void
+		{
+			if(!this.data)
+				return;
+
+			this.tree_nodes.fresh();
+			this.tree_nodes.xml = this.parseNodeTemplatesToTreeData();
 		}
 
 		private updateNodes():void
 		{
-			this.tree_nodes.xml = this.parseToTreeData();
+			let data:any = NodeManager.getInstance().getAllNodeTemplates();
+			this.setData(data);
 		}
 
 		private onMouseClick(evt:Event, index:number):void
@@ -159,9 +243,21 @@ module ui{
 
 		private onStageMouseUp(nodeName:string, item:Label, evt:Event):void
 		{
+			let pos:Laya.Point = new Laya.Point(this.x, this.y);
+			pos = this.localToGlobal(pos);
+			if(!this._dragRegion.contains(item.x, item.y))
+			{
+				// 不在拖动区域内则不处理
+			}
+			else if(item.x < pos.x + this.width)
+			{
+
+			}
+			else
+			{
+				EventManager.getInstance().event(EventType.ADD_NODE, [nodeName, item.x, item.y]);
+			}
 			Laya.stage.off(Event.MOUSE_UP, this, this.onStageMouseUp);
-			let node:Object = DataManager.getInstance().getNode(nodeName);
-			Laya.stage.event(EventType.ADD_NODE, [node, item.x, item.y]);
 			item.destroy();
 			item = null;
 		}

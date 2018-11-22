@@ -9,12 +9,12 @@ import Dictionary = Laya.Dictionary;
 import Stage = Laya.Stage;
 
 import IData = core.IData;
-import DataManager = core.DataManager;
 import Editor = ui.Editor;
 import Socket = Laya.Socket;
 import Byte = Laya.Byte;
 
 import Sprite = Laya.Sprite;
+import NodeTemplate = template.NodeTemplate;
 
 const RED_FILTER = new Laya.ColorFilter([
 		1, 0, 0, 0, 0, //R
@@ -23,16 +23,51 @@ const RED_FILTER = new Laya.ColorFilter([
 		0, 0, 0, 1, 0, //A
 	]);
 
+ window.onresize=function()
+ {
+	Laya.stage.width = window.innerWidth;
+	Laya.stage.height = window.innerHeight;
+ }
+
 //程序入口
-Laya.init(1900, 1000, WebGL);
+Config.isAntialias = true;
+Laya.init( window.innerWidth, window.innerHeight, WebGL);
+Laya.stage.scaleMode = Stage.SCALE_NOSCALE;
+
 //激活资源版本控制
 Laya.ResourceVersion.enable("version.json", Handler.create(null, beginLoad), Laya.ResourceVersion.FILENAME_VERSION);
 
 function beginLoad():void{
-	Laya.loader.load("res/atlas/editor.atlas", Handler.create(null, onLoaded));
+	Laya.stage.bgColor = "#242838";
+	Laya.loader.load(["res/atlas/editor.atlas"], Handler.create(null, onLoaded));
 }
 
 function onLoaded(): void {
+	// let arr:Array<Sprite> = new Array<Sprite>();
+	// let endPoint:Sprite = null;
+	// for(let i:number = 0; i < 3; ++i)
+	// {
+	// 	let ep:Sprite = new Sprite();
+	// 	ep.name = i.toString();
+	// 	arr.push(ep);
+	// 	if(i == 2)
+	// 		endPoint = ep;
+	// }
+
+	// let arr1:Array<Sprite> = new Array<Sprite>();
+	// for(let i:number = 0; i < 2; ++i)
+	// {
+	// 	let ep:Sprite = new Sprite();
+	// 	ep.name = (10 + i).toString();
+	// 	arr1.push(ep);
+	// }
+
+	// let other:Array<Sprite> = arr.concat(arr1);
+
+	// endPoint.name = "some";
+
+	// console.log(other.length);
+ 	// Laya.Stat.show(0,0);
 	let loginView:LoginView = new LoginView();
 	Laya.stage.addChild(loginView);
 	//EventManager.getInstance().Test();

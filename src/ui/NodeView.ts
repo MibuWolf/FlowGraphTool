@@ -2,147 +2,221 @@
 * @author confiner
 * @desc 节点视图 
 */
-module ui{
+module ui {
 
 	import Elements = ui.Editor.Elements;
+	import GraphManager = managers.GraphManager;
 	import Event = Laya.Event;
-	import Rectangle = Laya.Rectangle;
-	import EventType = core.EventType;
-	import IItem = core.IItem;
+	import Point = Laya.Point;
+	import Graph = model.Graph;
 
-	export class NodeView extends Elements.NodeViewUI implements IData
-	{
-		private _dragRegion:Rectangle = null; 	// 拖拽区域
-		private _box_slots:SlotsView = null; // 插槽界面
-		data:Object;	// 节点数据
+	export class NodeView extends Elements.NodeViewUI implements IData {
+		private _box_slots: SlotsView = null; // 插槽界面
+		data: model.Node;	// 节点数据
 
-		constructor(dragRegion:Rectangle)
-		{
+		constructor() {
 			super();
-			this._dragRegion = dragRegion;
+			this.clearStatus();
 			this.addEvents();
+
+			//Laya.timer.frameLoop(100, this, this.postUpdate);
+		}
+
+		private postUpdate(): void {
+			this.debugSprite(this);
+			this.graphics
+		}
+
+		private debugSprite(sp: Laya.Node): void {
+			let num: number = sp.numChildren;
+			let child: Laya.Node = null;
+			if (num == 0) {
+				if (sp["graphics"]) {
+					//sp["graphics"].clear();
+					sp["graphics"].drawRect(0, 0, sp["width"], sp["height"], null, "#ff0000", 1);
+				}
+			}
+			else {
+				while (num > 0) {
+					num--;
+					child = sp.getChildAt(num);
+					this.debugSprite(child);
+				}
+			}
 		}
 
 		// 销毁对象
-		destroy(destroyChild?: boolean):void
-		{
-			this.removeEvents();
+		destroy(destroyChild?: boolean): void {
 			super.destroy(destroyChild);
+			managers.EventManager.getInstance().off(core.EventType.DEBUG_RESULT, this, this.debugResultHandler);
+			managers.EventManager.getInstance().off(core.EventType.DEBUG_OPERATION, this, this.onDebugOperationHandler);
+			this.offAll();
 		}
 
 		// 添加事件
-		private addEvents():void
-		{
-			this.on(Event.MOUSE_DOWN, this, this.onStartDrag);
-			this.on(Event.MOUSE_UP, this, this.onEndDrag);
-			this.on(Event.CLICK, this, this.onClickHandler);
-			this.checkCall.clickHandler = new Handler(this, this.clickHandler, [this.checkCall]);
-			this.checkReturn.clickHandler = new Handler(this, this.clickHandler, [this.checkReturn]);
+		private addEvents(): void {
+			this.check_entry.clickHandler = new Handler(this, this.clickHandler, [this.check_entry]);
+			this.check_exit.clickHandler = new Handler(this, this.clickHandler, [this.check_exit]);
+			this.cbx_debug.clickHandler = new Handler(this, this.debugHandler);
+			managers.EventManager.getInstance().on(core.EventType.DEBUG_OPERATION, this, this.onDebugOperationHandler);
+			managers.EventManager.getInstance().on(core.EventType.DEBUG_RESULT, this, this.debugResultHandler);
 		}
 
-		private clickHandler(check:Laya.CheckBox):void
-		{
-			if(check == this.checkCall)
-				this.data["children_flow_graph_call"] = this.data["id"];
-			else if(check == this.checkReturn)
-				this.data["children_flow_graph_return"] = this.data["id"];
+		private onDebugOperationHandler(operationType: string): void {
+			if (operationType == core.DebugType.DebugExit.toString()) {
+				this.img_old.visible = this.img_status.visible = false;
+				this.cbx_debug.selected = false;
+			}
 		}
 
-		private onClickHandler(evt:Event):void
-		{
-			Laya.stage.event(EventType.REMOVE_NODE, this.data["id"]);
-			evt.stopPropagation();
+		private debugResultHandler(operationType: string): void {
+			this.img_old.visible = false;
+			this.img_status.visible = false;
+			let graphDebugInfo: model.GraphDebugInfo = managers.DebugManager.getInstance().getCurrent();
+			if (graphDebugInfo) {
+				if (graphDebugInfo.getHitNodeId() == this.data.id) {
+					this.img_status.visible = true;
+					this.img_status.width = this.img_select.width;
+					this.img_status.height = this.img_select.height;
+					if (this.img_select.visible)
+						this.img_select.visible = false;
+				}
+				// else if(graphDebugInfo.isInDebugStack(this.data.id))
+				// {
+				// 	this.img_old.visible = true;
+				// 	this.img_old.width = this.img_select.width;
+				// 	this.img_old.height = this.img_select.height;
+				// }
+			}
 		}
 
-		// 移除事件
-		private removeEvents():void
-		{
-			this.off(Event.MOUSE_DOWN, this, this.onStartDrag);
-			this.off(Event.MOUSE_UP, this, this.onEndDrag);
-			this.off(Event.CLICK, this, this.onClickHandler);
+		private debugHandler(): void {
+			let isDebug: boolean = this.cbx_debug.selected;
+			this.data.setDebug(isDebug);
+			if (isDebug)
+				managers.DebugManager.getInstance().debugAdd(this.data.id);
+			else
+				managers.DebugManager.getInstance().debugDelete(this.data.id);
 		}
 
-		 private onStartDrag(e: Event): void 
-		 {
-            //鼠标按下开始拖拽
-            this.startDrag(this._dragRegion);
-			this.stage.event(EventType.NODE_DRAG_START, [this.data["id"]]);
-        }
 
-		private onEndDrag(e: Event): void 
-		{
-            this.stopDrag();
-			this.stage.event(EventType.NODE_DRAG_END, [this.data["id"]]);
-        }
+		private clickHandler(check: Laya.CheckBox): void {
+			let graph: Graph = GraphManager.getInstance().getGraph(this.data.ownerGraphName);
+			if (!graph) {
+				console.error("error: node name:" + this.data.getName() + " belong to graph name + " + this.data.ownerGraphName + " is null");
+			}
+			else {
+				if (check == this.check_entry)
+					graph.childNodeCall = this.data.id;
+				else if (check == this.check_exit)
+					graph.childNodeReturn = this.data.id;
+			}
+		}
+
+		// 获取插槽
+		public getItem(slotId: string): core.ITransform {
+			return this._box_slots.getSlotInItem(slotId);
+		}
 
 		// 更新
-		private update():void
-		{
-			this.box_title.txt_nodeName.text = this.data["name"];
-			this.box_title.txt_nodeType.text = this.data["type"];
-			this.checkCall.selected = this.data["children_flow_graph_call"] == this.data["id"];
-			this.checkReturn.selected = this.data["children_flow_graph_return"] == this.data["id"];
-	
-			if(!this._box_slots)
-			{
+		private update(): void {
+			this.box_right.visible = !this.data.isBak;
+			this.box_error.visible = this.data.isBak;
+			this.box_error.mouseEnabled = this.data.isBak;
+			this.cbx_debug.visible = this.data.type != core.NodeType.Data;
+
+			this.img_title.skin = "editor/" + (managers.NodeManager.getInstance().GetColorId(this.data.category) % 11) + ".png";
+			this.txt_nodeName.text = this.data.getName();
+			let w: number = 2 * this.txt_nodeName.x + this.txt_nodeName.width + 20 + this.cbx_debug.width + 20;
+			this.cbx_debug.x = this.txt_nodeName.x + this.txt_nodeName.width + 20;
+			w = Math.max(w, 180);
+			this.txt_category.text = this.data.category.toString();
+			let graph: model.Graph = GraphManager.getInstance().getGraph(this.data.ownerGraphName);
+			if (graph) {
+				this.check_entry.selected = graph.childNodeCall == this.data.id;
+				this.check_exit.selected = graph.childNodeReturn == this.data.id;
+			}
+
+			if (!this._box_slots) {
 				this._box_slots = new SlotsView();
-				this._box_slots.y = this.box_title.y + this.box_title.height + 5;
+				this._box_slots.setAnchor(this._anchor);
+				this._box_slots.width = w;
+				this._box_slots.y = this.img_title.height;
 				this.addChild(this._box_slots);
+				this._box_slots.on(core.EventType.RESIZE, this, this.onResizeHandler);
 			}
 
 			this._box_slots.setData(this.data);
 
-			if(this.box_title.bg.width < this.width)
-			{
-				this.box_title.bg.width = this.width;
-				this.bg.width = this.width;
-			}
-			
-			if(this.width > this._box_slots.width)
-			{
-				this._box_slots.setWidth(this.width);
+			this.bg.height = this._box_slots.y + this._box_slots.height + 45;
+			if (!this.data.isBak) {
+				this.box_right.height = this.bg.height;
+				this.box_right.width = this.bg.width;
 			}
 
-			this.bg.height = this._box_slots.y + this._box_slots.height + 10;
+			this.cbx_debug.selected = this.data.getDebug();
+			this._box_slots.visible = !this.data.isBak;
 		}
 
-		public getSlotIns():Array<Object>
-		{
-			return this._box_slots.list_slotsIn.array;
+		private _anchor: Sprite = null;
+		public setAnchor(anchor: Sprite): void {
+			this._anchor = anchor;
 		}
 
-		public getSlotsOuts():Array<Object>
-		{
-			return this._box_slots.list_slotsOut.array;
+
+		private onResizeHandler(): void {
+			if (this._box_slots) {
+				this.bg.width = this._box_slots.width + 14;
+				this.img_title.width = this._box_slots.width;
+				this.img_select.width = this._box_slots.width + 28;
+				this.width = this.bg.width;
+				this.cbx_debug.right = 20;
+
+				this.bg.height = this.img_title.height + this._box_slots.height + 45;
+				this.img_select.height = this.bg.height + 22;
+				this.height = this.bg.height;
+				this._box_slots.updateLayout();
+
+				this.check_entry.left = 13;
+				this.check_entry.bottom = 20;
+				this.check_exit.right = 21;
+				this.check_exit.bottom = 20;
+				if (!this.data.isBak) {
+					this.box_right.height = this.bg.height;
+					this.box_right.width = this.bg.width;
+				}
+			}
 		}
 
-		public getItem(slotName:string):IItem
-		{
-			for(let i:number = 0; i < this._box_slots.list_slotsOut.array.length; ++i)
-			{
-				if(this._box_slots.list_slotsOut.array[i]["name"] == slotName)
-					return this._box_slots.list_slotsOut.cells[i];
+		public setSelect(slect: boolean): void {
+			this.clearStatus();
+			let graphDebugInfo: model.GraphDebugInfo = managers.DebugManager.getInstance().getCurrent();
+			if (!graphDebugInfo) {
+				this.img_select.visible = slect;
 			}
+			else {
+				if (graphDebugInfo.getHitNodeId() == this.data.id) {
+					this.img_status.visible = true;
+				}
+			}
+		}
 
-			for(let i:number = 0; i < this._box_slots.list_slotsIn.array.length; ++i)
-			{
-				if(this._box_slots.list_slotsIn.array[i]["name"] == slotName)
-					return this._box_slots.list_slotsIn.cells[i];
-			}
-			
-			return null;
+		private clearStatus(): void {
+			this.img_select.visible = false;
+			this.img_old.visible = false;
+			this.img_status.visible = false;
 		}
 
 		// 设置数据
-		setData(data:Object):void
-		{
+		setData(data: model.Node): void {
 			this.data = data;
-			this.data["id"] = this.data["id"] ? this.data["id"] : DataManager.getInstance().guid();
 			this.update();
-			this.graphics.drawLine(0, 0, this.width, 0, "#ff0000", 1);
-			this.graphics.drawLine(this.width, 0, this.width, this.height, "#ff0000", 1);
-			this.graphics.drawLine(this.width, this.height, 0, this.height, "#ff0000", 1);
-			this.graphics.drawLine(0, this.height, 0, 0, "#ff0000", 1);
+
+			// 测试边框
+			// this.graphics.drawLine(0, 0, this.width, 0, "#ff0000", 1);
+			// this.graphics.drawLine(this.width, 0, this.width, this.height, "#ff0000", 1);
+			// this.graphics.drawLine(this.width, this.height, 0, this.height, "#ff0000", 1);
+			// this.graphics.drawLine(0, this.height, 0, 0, "#ff0000", 1);
 		}
 	}
 }

@@ -3,7 +3,8 @@
     "type":"View",
     "selectedBox":1,
     "selecteID":9,
-    "props":{"width":196,"sceneColor":"#000000","sceneBg":"laya/views/Editor/Items/SlotsView.png","height":20},
+    "referenceLines":null,
+    "props":{"width":196,"sceneColor":"#000000","sceneBg":"laya/views/Editor/LeftContentView.png","height":20},
     "nodeParent":-1,
     "label":"View",
     "isOpen":true,
@@ -38,7 +39,7 @@
                     "child":[
                         ]
                 }],
-            "$HIDDEN":false
+            "$HIDDEN":true
         },
         {
             "x":15,
@@ -65,7 +66,8 @@
                     "compId":17,
                     "child":[
                         ]
-                }]
+                }],
+            "$HIDDEN":true
         }],
     "animations":[
         {

@@ -3,172 +3,294 @@
 * @desc	插槽列表界面
 */
 module ui{
-	import SlotType = core.SlotType;
 	import Elements = ui.Editor.Elements;
+	import Point = Laya.Point;
 
-	export class SlotsView extends Elements.SlotsViewUI implements IData
+	export class SlotsView extends Laya.Sprite implements IData
 	{
-		data:Object; // 插槽数据
+		data:model.Node; // 插槽数据
+		private _slotIns:Array<SlotInItem>;	// 输入插槽列表
+		private _slotInPool:Array<SlotInItem>;
+		private _slotOuts:Array<SlotOutItem>;	// 输出插槽列表
+		private _slotOutPool:Array<SlotOutItem>;
+		private _leftWidth:number = 0;
+		private _rightWidth:number = 0;
+		private _hasIn:boolean = false;
+		private _hasOut:boolean = false;
+		private readonly _ItemHeight:number = 29;
+
+		private _anchor:Sprite = null;
+		public setAnchor(anchor:Sprite):void
+		{
+			this._anchor = anchor;
+		}
 
 		constructor()
 		{
 			super();
+			this._slotInPool = new Array<SlotInItem>();
+			this._slotOutPool = new Array<SlotOutItem>();
+			this._slotIns = new Array<SlotInItem>();
+			this._slotOuts = new Array<SlotOutItem>();
+		}
+
+		public getSlotInItem(id:string):core.ITransform
+		{
+			for(let i:number = 0, len = this._slotIns.length; i < len; ++i)
+			{
+				if(this._slotIns[i].data.getId() == id)
+					return this._slotIns[i];
+			}
+
+			for(let i:number = 0, len = this._slotOuts.length; i < len; ++i)
+			{
+				if(this._slotOuts[i].data.getId() == id)
+					return this._slotOuts[i];
+			}
+
+			return null;
+		}
+
+		destroy(destroyChild?:boolean):void
+		{
+			let slotIn:SlotInItem = null;
+			while(this._slotIns.length > 0)
+			{
+				slotIn = this._slotIns.pop();
+				if(slotIn.parent)
+					slotIn.parent.removeChild(slotIn);
+				slotIn.offAll();
+				slotIn.destroy(true);
+			}
+
+			while(this._slotInPool.length > 0)
+			{
+				slotIn = this._slotInPool.pop();
+				if(slotIn.parent)
+					slotIn.parent.removeChild(slotIn);
+				slotIn.offAll();
+				slotIn.destroy(true);
+			}
+
+			let slotOut:SlotOutItem = null;
+			while(this._slotOuts.length > 0)
+			{
+				slotOut = this._slotOuts.pop();
+				if(slotOut.parent)
+					slotOut.parent.removeChild(slotOut);
+				slotOut.offAll();
+				slotOut.destroy(true);
+			}
+
+			while(this._slotOutPool.length > 0)
+			{
+				slotOut = this._slotOutPool.pop();
+				if(slotOut.parent)
+					slotOut.parent.removeChild(slotOut);
+				slotOut.offAll();
+				slotOut.destroy(true);
+			}
 		}
 
 		private update():void
 		{
-			let slotsIn:Array<Object> = new Array<Object>();
-			let slotsOut:Array<Object> = new Array<Object>();
+			this.clear();
 
-			// 默认有个执行输入插槽
-			if(this.data["type"] == "event" || this.data["type"] == "data")
+			let slotsIn:Array<model.Slot> = this.data.getSlotIns();
+			if(slotsIn.length > 0)
 			{
-				// event 和 data类型节点不需要执行输入
+				this.createSlotInList(slotsIn);
+			}
+			
+			let slotsOut:Array<model.Slot> = this.data.getSlotOuts();
+			if(slotsOut.length > 0)
+			{
+				this.createSlotOutList(slotsOut);
+			}
+			
+			this.updateSlotItem();
+		}
+
+		private updateSlotItem():void
+		{
+			let startY:number = 0;
+			if(this._hasIn || this._hasOut)
+			{
+				startY = 30;
+			}
+
+			let leftHeigh:number = 0;
+			let rightHeigh:number = 0;
+			let slotIn:SlotInItem = null;
+			let index:number = 0;
+			let graph:model.Graph = managers.GraphManager.getInstance().getCurrent();
+			for(let i:number = 0, len = this._slotIns.length; i < len; ++i)
+			{
+				slotIn = this._slotIns[i];
+				if(slotIn.data.getType() == core.SlotType.ExecutionIn)
+				{
+					slotIn.y = 5;
+				}
+				else
+				{
+					slotIn.y = startY + index * this._ItemHeight;
+					index ++;
+				}
+
+				leftHeigh =  slotIn.y + this._ItemHeight;
+				if(graph)
+					slotIn.setStatus(graph.existAssociation(this.data.id, slotIn.data.getId()));
+			}
+
+			index = 0;
+			let slotOut:SlotOutItem = null;
+			for(let i:number = 0, len = this._slotOuts.length; i < len; ++i)
+			{
+				slotOut = this._slotOuts[i];
+				if(slotOut.data.getType() == core.SlotType.ExecutionOut && i == 0)
+					slotOut.y = 5;
+				else
+				{
+					slotOut.y = startY + index * this._ItemHeight;
+					index++;
+				}
+				
+				rightHeigh = slotOut.y + this._ItemHeight;
+				if(graph)
+					slotOut.setStatus(graph.existAssociation(this.data.id, slotOut.data.getId()));
+			}
+
+			this.height = Math.max(leftHeigh, rightHeigh);
+
+			this.event(core.EventType.RESIZE);
+		}
+
+		public updateLayout():void
+		{
+			for(let i:number = 0, len = this._slotOuts.length; i < len; ++i)
+			{
+				this._slotOuts[i].right = 0;
+			}
+		}
+
+		private clear():void
+		{
+			this._hasIn = false;
+			this._hasOut = false;
+
+			let slotIn:SlotInItem = null;
+			while(this._slotIns.length > 0)
+			{
+				slotIn = this._slotIns.pop();
+				if(slotIn.parent)
+					slotIn.parent.removeChild(slotIn);
+				this._slotInPool.push(slotIn);
+			}
+
+			let slotOut:SlotOutItem = null;
+			while(this._slotOuts.length > 0)
+			{
+				slotOut = this._slotOuts.pop();
+				if(slotOut.parent)
+					slotOut.parent.removeChild(slotOut);
+				this._slotOutPool.push(slotOut);
+			}
+		}
+
+		private createSlotInList(arr:Array<model.Slot>):void
+		{
+			let slotIn:SlotInItem = null;
+			let graph:model.Graph = managers.GraphManager.getInstance().getCurrent();
+			for(let i:number = 0, len = arr.length; i < len; ++i)
+			{
+				slotIn = this.createSlotInItem();
+				if(arr[i].getType() == core.SlotType.ExecutionIn)
+					this._hasIn = true;
+
+				slotIn.setData(arr[i]);
+				slotIn.input_slotValue.editable = true;
+				if(graph && graph.hasAssociation(this.data.id, arr[i].getId()))
+				{
+					slotIn.input_slotValue.editable = false;
+				}
+				this._slotIns.push(slotIn);
+			}
+		}
+
+		private createSlotInItem():SlotInItem
+		{
+			let slotIn:SlotInItem = null;
+			if(this._slotInPool.length> 0)
+			{
+				slotIn = this._slotInPool.pop();
+				slotIn.clear();
+			}
+
+			if(!slotIn)
+			{
+				slotIn = new SlotInItem();
+				//slotIn.setAnchor(this.parent as Sprite);
+				slotIn.setAnchor(this._anchor);
+				this.addChild(slotIn);
+				slotIn.on(core.EventType.RESIZE, this, this.onResizeHandler);
+			}
+
+			return slotIn;
+		}
+
+		private onResizeHandler(isIn:boolean, w:number):void
+		{
+			if(isIn)
+			{
+				this._leftWidth = this._leftWidth > w ? this._leftWidth : w;
 			}
 			else
 			{
-				let obj = {"type":SlotType.ExecutionIn, "name":"In", "id":this.data["id"], "nodeName":this.data["name"]};
-				slotsIn.push(obj);
-				DataManager.getInstance().addSlotData(obj);
+				this._rightWidth = this._rightWidth > w ? this._rightWidth : w;
 			}
 
-			// 解析数据输入插槽
-			let inputs:Array<Object> = DataManager.getInstance().getProperty(this.data, "input");
-			if(inputs)
-			{
-				for(let i:number = 0; i < inputs.length; ++i)
-				{
-					let obj:Object = {"type":SlotType.DataIn, "name":"", "dataType":"", "value":"", "id":this.data["id"], "nodeName":this.data["name"]};
-					for(let prop in inputs[i])
-					{
-						obj["name"] = prop;
-						let valueObj:Object = inputs[i][prop];
-						if(valueObj)
-						{
-							for(let pro in valueObj)
-							{
-								obj["dataType"] = pro;
-								if(valueObj[pro] == "lock")
-								{
-									obj["value"] = "lock";
-									break;
-								}
-
-								switch(pro)
-								{
-									case "boolean":
-										obj["value"] = valueObj[pro];
-									break;
-									case "int":
-										obj["value"] = valueObj[pro];
-									break;
-									case "number":
-										obj["value"] = valueObj[pro];
-									break;
-									case "vector3":
-										obj["value"] = valueObj[pro][0] + "," + valueObj[pro][1] + "," + valueObj[pro][2];
-									break;
-									case "string":
-										obj["value"] = valueObj[pro];
-									break;
-								}
-							}
-						}
-					}
-					slotsIn.push(obj);
-					DataManager.getInstance().addSlotData(obj);
-				}
-			}
-			
-
-			// 解析执行输出插槽
-			let nexts:Array<Object> = DataManager.getInstance().getProperty(this.data, "next");
-			if(nexts)
-			{
-				for(let i:number = 0; i < nexts.length; ++i)
-				{
-					let obj:Object = {"type":SlotType.ExecutionOut, "name":nexts[i], "id":this.data["id"], "nodeName":this.data["name"]};
-					slotsOut.push(obj);	
-					DataManager.getInstance().addSlotData(obj);
-				}
-			}
-
-			// 解析数据输出插槽
-			let outputs:Array<Object> = DataManager.getInstance().getProperty(this.data, "output");
-			if(outputs)
-			{
-				for(let i:number = 0; i < outputs.length; ++i)
-				{
-					let obj:Object = {"type":SlotType.DataOut, "name":"", "dataType":"", "id":this.data["id"], "nodeName":this.data["name"]};
-					let outputObj:Object = outputs[i];
-					for(let prop in outputObj)
-					{
-						obj["name"] = prop;
-						let valueObj:Object = outputObj[prop];
-						if(valueObj)
-						{
-							for(let pro in valueObj)
-							{
-								obj["dataType"] = pro;
-							}
-						}
-					}
-					slotsOut.push(obj);	
-					DataManager.getInstance().addSlotData(obj);
-				}
-			}
-
-			this.list_slotsIn.array = slotsIn;
-			this.list_slotsIn.repeatY = slotsIn.length;
-			this.list_slotsIn.renderHandler = new Handler(this, this.onSlotsInRender);
-
-			this.list_slotsOut.array = slotsOut;
-			this.list_slotsOut.repeatY = slotsOut.length;
-			this.list_slotsOut.renderHandler = new Handler(this, this.onSlotsOutRender);
-
-			this.list_slotsOut.x = this.list_slotsIn.x + this.list_slotsIn.width + 10;
-
-			this.height = Math.max(this.list_slotsIn.height, this.list_slotsOut.height);
-			this.width = this.list_slotsOut.x + this.list_slotsOut.width + 5;
+			let width:number = this._leftWidth + this._rightWidth + 10;
+			this.width = this.width < width ? width : this.width;
+			this.event(core.EventType.RESIZE);
 		}
 
-		// 设置宽度
-		public setWidth(width:number):void
+		private createSlotOutList(arr:Array<model.Slot>):void
 		{
-			if(width > this.width)
+			let slotOut:SlotOutItem = null;
+			for(let i:number = 0, len = arr.length; i < len; ++i)
 			{
-				this.list_slotsOut.x = width - this.list_slotsOut.width - 5;
-				this.width = this.list_slotsOut.x + this.list_slotsOut.width + 5;
+				slotOut = this.createSlotOutItem();
+				if(arr[i].getType() == core.SlotType.ExecutionOut)
+					this._hasOut = true;
+
+				slotOut.setData(arr[i]);
+				this._slotOuts.push(slotOut);
 			}
 		}
 
-		private onSlotsInRender(item:SlotInItem, index: number): void 
+		private createSlotOutItem():SlotOutItem
 		{
-			//自定义list的渲染方式
-			let itemData:Object = item.dataSource;
-			item.clip_slotIcon.index = itemData["type"] - 1;
-			item.txt_slotName.text = itemData["name"];
-			let isDataSlotIn:boolean = itemData["type"] == SlotType.DataIn.toString();
-			item.input_slotValue.visible = isDataSlotIn && itemData["value"] != "lock";
-			if(item.input_slotValue.visible)
+			let slotOut:SlotOutItem = null;
+			if(this._slotOutPool.length> 0)
 			{
-				item.input_slotValue.x = item.txt_slotName.x + item.txt_slotName.textField.textWidth + 5;
-				item.input_slotValue.text = itemData["value"];
+				slotOut = this._slotOutPool.pop();
+				slotOut.clear();
 			}
-			item.setAnchor(this.parent as Laya.Sprite);
-			item.width = item.input_slotValue.x + item.input_slotValue.width;
+
+			if(!slotOut)
+			{
+				slotOut = new SlotOutItem();
+				this.addChild(slotOut);
+				slotOut.on(core.EventType.RESIZE, this, this.onResizeHandler);
+				//slotOut.setAnchor(this.parent as Sprite);
+				slotOut.setAnchor(this._anchor);
+			}
+			slotOut.right = 0;
+
+			return slotOut;
 		}
 
-		private onSlotsOutRender(item:SlotOutItem, index: number): void 
-		{
-			//自定义list的渲染方式
-			let itemData:Object = item.dataSource;
-			item.clip_slotIcon.index = itemData["type"] - 1;
-			item.txt_slotName.text = itemData["name"];
-			item.setAnchor(this.parent as Laya.Sprite);
-		}
-
-		setData(data:Object):void
+		setData(data:model.Node):void
 		{
 			this.data = data;
 			this.update();

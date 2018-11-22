@@ -6,8 +6,8 @@ module core{
 	export enum SlotType
 	{
 		ExecutionIn = 1,
-		ExecutionOut,
-		DataIn,
-		DataOut
+		ExecutionOut = 2,
+		DataIn = 3,
+		DataOut = 4
 	}
 }

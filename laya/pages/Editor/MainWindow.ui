@@ -1,9 +1,9 @@
 {
     "x":0,
     "type":"View",
-    "selectedBox":10,
-    "selecteID":10,
-    "props":{"y":0,"x":0,"width":1900,"var":"MainWindow","sceneColor":"#000000","sceneBg":"laya/views/Editor/MainWindow.png","renderType":"instance","name":"MainWindow","height":1100},
+    "selectedBox":1,
+    "selecteID":13,
+    "props":{"y":0,"x":0,"var":"MainWindow","sceneColor":"#000000","sceneBg":"laya/views/Editor/MainWindow.png","renderType":"instance","name":"MainWindow"},
     "nodeParent":-1,
     "label":"View(MainWindow)",
     "isOpen":true,
@@ -15,107 +15,74 @@
         {
             "x":15,
             "type":"Image",
-            "props":{"y":0,"x":0,"width":1900,"skin":"editor/titleBg.png","sizeGrid":"1,20,1,20","name":"titleBg","height":34},
+            "props":{"y":60,"x":0,"width":1920,"var":"bg","skin":"editor/top_bg.png","sizeGrid":"5,5,5,5","height":1020},
             "nodeParent":1,
-            "label":"Image(titleBg)",
+            "label":"Image(bg)",
             "isOpen":true,
-            "isDirectory":true,
+            "isDirectory":false,
             "isAniNode":true,
-            "hasChild":true,
-            "compId":4,
+            "hasChild":false,
+            "compId":13,
             "child":[
-                {
-                    "x":30,
-                    "type":"Label",
-                    "props":{"y":7,"x":26,"width":120,"text":"FlowGraphTool","name":"titleTxt","height":20,"fontSize":16,"bold":true,"align":"center"},
-                    "nodeParent":4,
-                    "label":"Label(titleTxt)",
-                    "isDirectory":false,
-                    "isAniNode":true,
-                    "hasChild":false,
-                    "compId":5,
-                    "child":[
-                        ]
-                }],
-            "$LOCKED":true
+                ],
+            "$HIDDEN":false
         },
         {
             "x":15,
-            "type":"Image",
-            "props":{"y":34,"x":0,"width":1900,"skin":"editor/secondTitleBg.png","sizeGrid":"10,10,10,10","name":"secTitleBg","height":30},
+            "type":"Box",
+            "props":{"y":0,"x":0},
             "nodeParent":1,
-            "label":"Image(secTitleBg)",
+            "label":"Box",
             "isOpen":true,
             "isDirectory":true,
             "isAniNode":true,
             "hasChild":true,
-            "compId":6,
+            "compId":14,
             "child":[
                 {
                     "x":30,
-                    "type":"Label",
-                    "props":{"y":5,"width":50,"visible":true,"var":"file","valign":"middle","underline":true,"text":"File","mouseEnabled":true,"left":20,"height":20,"fontSize":14,"font":"Arial","color":"#050505","bold":false,"align":"center"},
-                    "nodeParent":6,
-                    "label":"Label(file)",
-                    "isDirectory":false,
-                    "isAniNode":true,
-                    "hasChild":false,
-                    "compId":7,
-                    "child":[
-                        ]
-                },
-                {
-                    "x":30,
-                    "type":"Label",
-                    "props":{"y":5,"width":50,"visible":true,"var":"save","valign":"middle","underline":true,"text":"Save","mouseEnabled":true,"left":76,"height":20,"fontSize":14,"color":"#050505","align":"center"},
-                    "nodeParent":6,
-                    "label":"Label(save)",
-                    "isDirectory":false,
-                    "isAniNode":true,
-                    "hasChild":false,
-                    "compId":8,
-                    "child":[
-                        ]
-                },
-                {
-                    "x":30,
-                    "type":"Label",
-                    "props":{"y":5,"width":50,"visible":true,"var":"view","valign":"middle","underline":true,"text":"View","mouseEnabled":true,"left":132,"height":20,"fontSize":14,"color":"#050505","align":"center"},
-                    "nodeParent":6,
-                    "label":"Label(view)",
-                    "isDirectory":false,
-                    "isAniNode":true,
-                    "hasChild":false,
-                    "compId":9,
-                    "child":[
-                        ]
-                },
-                {
-                    "x":30,
-                    "type":"TextInput",
-                    "props":{"y":32,"x":295,"var":"input_graphName","underline":false,"skin":"editor/textinput.png","sizeGrid":"5,5,5,5"},
-                    "nodeParent":6,
-                    "label":"TextInput(input_graphName)",
-                    "isDirectory":false,
-                    "isAniNode":true,
-                    "hasChild":false,
-                    "compId":10,
-                    "child":[
-                        ]
-                },
-                {
-                    "x":30,
                     "type":"Button",
-                    "props":{"y":31,"x":437,"var":"btn_save","skin":"editor/button.png","label":"save"},
-                    "nodeParent":6,
-                    "label":"Button(btn_save)",
+                    "props":{"y":14,"x":304,"var":"btn_file","stateNum":"3","skin":"editor/title_btn.png","sizeGrid":"15,20,15,20","name":"file","labelPadding":"0","labelColors":"#ffffff","labelBold":true,"labelAlign":"center","label":"File"},
+                    "nodeParent":14,
+                    "label":"Button(btn_file)",
+                    "isOpen":false,
                     "isDirectory":false,
                     "isAniNode":true,
                     "hasChild":false,
-                    "compId":11,
+                    "compId":15,
                     "child":[
-                        ]
-                }]
+                        ],
+                    "$HIDDEN":false
+                },
+                {
+                    "x":30,
+                    "type":"Image",
+                    "props":{"y":20,"x":25,"skin":"editor/logo_small.png"},
+                    "nodeParent":14,
+                    "label":"Image",
+                    "isDirectory":false,
+                    "isAniNode":true,
+                    "hasChild":false,
+                    "compId":16,
+                    "child":[
+                        ],
+                    "$HIDDEN":false
+                },
+                {
+                    "x":30,
+                    "type":"Image",
+                    "props":{"y":60,"x":0,"width":1920,"var":"img_last","skin":"editor/yinying_bg.png","mouseEnabled":false,"height":16},
+                    "nodeParent":14,
+                    "label":"Image(img_last)",
+                    "isDirectory":false,
+                    "isAniNode":true,
+                    "hasChild":false,
+                    "compId":17,
+                    "child":[
+                        ],
+                    "$HIDDEN":false
+                }],
+            "$HIDDEN":false
         }],
     "animations":[
         {
@@ -126,5 +93,6 @@
             "frameRate":24,
             "action":0
         }],
-    "$LOCKED":true
+    "$LOCKED":true,
+    "$HIDDEN":false
 }
